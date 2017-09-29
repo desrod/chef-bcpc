@@ -8,3 +8,4 @@ for binary in "${required_bins[@]}"; do
         exit 1
     fi
 done
+
