@@ -1,5 +1,6 @@
 #!/bin/bash
-required_bins=( curl git rsync ssh vagrant jq )
+
+required_bins=( curl git jq rsync ssh vagrant )
 
 for binary in "${required_bins[@]}"; do
     if ! [ -x "$(command -v $binary)" ]; then
@@ -7,4 +8,3 @@ for binary in "${required_bins[@]}"; do
         exit 1
     fi
 done
-
