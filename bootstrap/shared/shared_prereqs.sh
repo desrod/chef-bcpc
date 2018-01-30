@@ -113,7 +113,7 @@ download_pxe() {
 
 
 # Download the PXE boot ROM image
-# download_pxe
+download_pxe
 
 ####################################################################
 # Obtain an Ubuntu netboot image to be used for PXE booting.
