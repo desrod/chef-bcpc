@@ -33,11 +33,11 @@ cloud_img_url="https://cloud-images.ubuntu.com/vagrant/trusty/current"
 
 cloud_img_box="trusty-server-cloudimg-amd64-vagrant-disk1.box"
 netboot_iso="ubuntu-14.04-mini.iso"
+packages_json="$REPO_ROOT/bootstrap/config/packages.json"
 pypi_url="https://pypi.python.org/packages/source"
 pxe_rom="gpxe-1.0.1-80861004.rom"
-
+cookbook_base="https://supermarket.chef.io/cookbooks"
 ruby_gem_url="https://rubygems.global.ssl.fastly.net/gems"
-
 vbox_version="5.0.36"
 vbox_additions="VBoxGuestAdditions_$vbox_version.iso"
 vbox_url="http://download.virtualbox.org/virtualbox"
@@ -67,10 +67,10 @@ download_file() {
       curl_cmd -C - -o "$BOOTSTRAP_CACHE_DIR/$input_file" "$remote_url"
     elif [ $remote_size < $local_size ]; then
       echo "Remote file shrunk, delete local copy and start over" >&2
-    elif [ $local_size = 0 ]; then
-      echo "[-] Downloading ${input_file}..."
-      curl_cmd -o "$BOOTSTRAP_CACHE_DIR/$input_file" "$remote_url"
     fi
+  else
+   echo "[-] Downloading ${input_file}..."
+   curl_cmd -o "$BOOTSTRAP_CACHE_DIR/$input_file" "$remote_url"
   fi
 }
 
@@ -139,15 +139,13 @@ download_file "$CHEF_SERVER_DEB" "$chef_url/chef-server-core/$chef_server_ver/ub
 ####################################################################
 # Pull needed cookbooks from the Chef Supermarket (and remove the previous
 # versions if present). Versions are pulled from build_bins_versions.sh.
-cookbook_base="https://supermarket.chef.io/cookbooks"
-cookbook_json="$REPO_ROOT/bootstrap/config/cookbooks.json"
 
 mkdir -p "$BOOTSTRAP_CACHE_DIR/cookbooks"
 
 while read -r cookbook_name cookbook_version; do
    find "${BOOTSTRAP_CACHE_DIR}/cookbooks/" -name "${cookbook_name}-\*.tar.gz" -and -not -name "${cookbook_name}-${cookbook_version}.tar.gz" -delete && true
    download_file "cookbooks/${cookbook_name}-${cookbook_version}.tar.gz" "$cookbook_base/${cookbook_name}/versions/${cookbook_version}/download"
-done < <(jq -r '.packages[] | "\(.name) \(.version)"' "$cookbook_json")
+done < <(jq -r '.packages[] | "\(.name) \(.version)"' "$packages_json")
 
 
 ####################################################################
@@ -157,8 +155,6 @@ download_file knife-acl-1.0.2.gem "$ruby_gem_url/knife-acl-1.0.2.gem"
 
 ####################################################################
 # Pull needed gems for fpm and fluentd.
-rubygems_json="$REPO_ROOT/bootstrap/config/rubygems.json"
-
 mkdir -p "$BOOTSTRAP_CACHE_DIR"/{fpm_gems,fluentd_gems}
 
 while read -r fpm_name fpm_version; do
@@ -167,7 +163,7 @@ done < <(jq -r '.fpm_gems[] | "\(.name) \(.version)"' "$rubygems_json")
 
 while read -r fluentd_name fluentd_version; do
    download_file "fluentd_gems/${fluentd_name}-${fluentd_version}.gem" "$ruby_gem_url/${fluentd_name}-${fluentd_version}.gem"
-done < <(jq -r '.fluentd_gems[] | "\(.name) \(.version)"' "$rubygems_json")
+done < <(jq -r '.fluentd_gems[] | "\(.name) \(.version)"' "$packages_json")
 
 
 ####################################################################
@@ -186,13 +182,13 @@ rm -rf "$BOOTSTRAP_CACHE_DIR/diamond"
 clone_repo https://github.com/python-diamond/Diamond python-diamond "$VER_DIAMOND"
 clone_repo https://github.com/mobz/elasticsearch-head elasticsearch-head "$VER_ESPLUGIN"
 
-download_file pyrabbit-${VER_PYRABBIT}.tar.gz $pypi_url/p/pyrabbit/pyrabbit-${VER_PYRABBIT}.tar.gz
-download_file requests-aws-${VER_REQUESTS_AWS}.tar.gz $pypi_url/r/requests-aws/requests-aws-${VER_REQUESTS_AWS}.tar.gz
-download_file pyzabbix-${VER_PYZABBIX}.tar.gz $pypi_url/p/pyzabbix/pyzabbix-${VER_PYZABBIX}.tar.gz
 download_file pagerduty-zabbix-proxy.py https://gist.githubusercontent.com/ryanhoskin/202a1497c97b0072a83a/raw/96e54cecdd78e7990bb2a6cc8f84070599bdaf06/pd-zabbix-proxy.py
-download_file carbon-"${VER_GRAPHITE_CARBON}".tar.gz "$pypi_url/c/carbon/carbon-${VER_GRAPHITE_CARBON}.tar.gz"
-download_file whisper-"${VER_GRAPHITE_WHISPER}".tar.gz "$pypi_url/w/whisper/whisper-${VER_GRAPHITE_WHISPER}.tar.gz"
-download_file graphite-web-"${VER_GRAPHITE_WEB}".tar.gz "$pypi_url/g/graphite-web/graphite-web-${VER_GRAPHITE_WEB}.tar.gz"
+
+while read -r name version; do
+        # curl_cmd "$pypi_url/${name:0:1}/${name}/${name}-${version}.tar.gz" -o $BOOTSTRAP_CACHE_DIR/"${name}-${version}.tar.gz"
+        download_file "${name}-${version}.tar.gz" "$pypi_url/${name:0:1}/${name}/${name}-${version}.tar.gz"
+done < <(jq -r '.monitoring[] | "\(.name) \(.version)"' "$packages_json")
+
 
 ####################################################################
 # get calicoctl for Neutron+Calico experiments
