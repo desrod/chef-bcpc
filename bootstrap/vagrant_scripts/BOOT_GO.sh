@@ -75,7 +75,7 @@ show_help() {
 }
 
 if [ $# -eq 0 ]; then
-  show_help
+  $0 -b
   exit 0
 fi
 
